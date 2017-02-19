@@ -11,7 +11,6 @@ public class PlayerProcess
 	public Scanner in = null;
 	public PrintWriter out = null;
 	
-	
 	public PlayerProcess(String classPath, String className) {
 		try {
 			// XXX: If the startup is slow, ProcessBuilder could be the cause (?)

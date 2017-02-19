@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Set;
 import java.util.TreeSet;
 import javax.swing.plaf.basic.BasicInternalFrameTitlePane.MaximizeAction;
 import javax.swing.plaf.synth.SynthSeparatorUI;
@@ -12,11 +13,11 @@ import javax.swing.plaf.synth.SynthSeparatorUI;
 public class GameMachine
 {
 	public static final int TURN_TIME_LIMIT_MS = 1200;
-	public static final int TURN_LIMIT = 3000;
+	public static final int TURN_LIMIT = 5000;
 	
 	public static final int POINTS_DESTROY_WALL = 10;
 	public static final int POINTS_GET_POWERUP = 50;
-	public static final int POINTS_KILL_PLAYER = 200;
+	public static final int POINTS_KILL_PLAYER = 500;
 	
 	public static int turn = 0;
 	public static int numberOfPlayer = 0;
@@ -72,6 +73,7 @@ public class GameMachine
 			playerBombsPower[i] = 1;
 			playerBombsCount[i] = 1;
 			playerScores[i] = 0;
+			isPlayerAlive[i] = true;
 			isPlayerConnected[i] = false;
 			playerIndexMap.put(playerNames[i], i);
 		}
@@ -96,7 +98,6 @@ public class GameMachine
 					// Spawn player at location, if the player index is valid
 					int playerIndex = (boardMapCharacter - '0');
 					if ((playerIndex < numberOfPlayer) && !isPlayerConnected[playerIndex]) {
-						System.out.println(">> Spawned P" + (playerIndex));
 						iterBoardCell.add("P" + (playerIndex));
 						playerPositionsRow[playerIndex] = row;
 						playerPositionsCol[playerIndex] = col;
@@ -125,6 +126,12 @@ public class GameMachine
 					// Treated as: spawned by P0, power:3, count:2
 					// (This will explode on turn 1)
 					iterBoardCell.add("B:0:3:2");
+				}
+				else if (boardMapCharacter == '%') {
+					// Spawn a bomb (for debug purposes)
+					// Treated as: spawned by P1, power:3, count:2
+					// (This will explode on turn 1)
+					iterBoardCell.add("B:1:3:2");
 				}
 			}
 		}
@@ -171,12 +178,13 @@ public class GameMachine
 			
 			// Process/resolve the board
 			for (int i = 0; i < numberOfPlayer; i++) {
-				System.out.println("" + playerNames[i] + ": " + playerMoves[i]);
+				System.out.println("P" + i + ": " + playerMoves[i]);
 			}
-			resolveFlares();
+			weakenFlares();
 			movePlayers();
 			grabPowerups();
 			tickBombs();
+			clearRubbles();
 			placeBombs();
 			killTimeouts();
 						
@@ -393,31 +401,66 @@ public class GameMachine
 			}
 		}
 	}
+		
+	/**
+	 * Create a new rubble string, adding players from `blastCause` to rubble destruction-cause list.
+	 * @param blastCause - the owner of the bomb that hits the wall/rubble.
+	 * @param rubbleString - old rubble string, null means create new rubble string.
+	 */
+	public static String mergeRubbleString(ArrayList<Integer> blastCause, String oldRubbleString) {
+		Set<Integer> destructionCause = new TreeSet<Integer>();
+		String newRubbleString = "R:";
+		if (oldRubbleString != null) {
+			// Adding old destruction cause to `destructionCause`.
+			// Rubble string is in the form of "R:<cause>"
+			String[] oldRubbleStringSplit = oldRubbleString.split(":");
+			String[] oldDestructionCause =  oldRubbleStringSplit[1].split("\\.");
+			for (String playerIndex : oldDestructionCause) {
+				destructionCause.add(Integer.parseInt(playerIndex));
+			}
+		}
+		// Merge `blastCause` to `destructionCause`
+		for (Integer playerIndex : blastCause) {
+			destructionCause.add(playerIndex);
+		}
+		// Parse back to newRubbleString
+		boolean firstAddedCause = true;
+		for (Integer playerIndex : destructionCause) {
+			if (firstAddedCause) {
+				newRubbleString += playerIndex;
+				firstAddedCause = false;
+			}
+			else {
+				newRubbleString += "." + playerIndex;
+			}
+		}
+		return newRubbleString;
+	}
 	
 	/**
 	 * Add a flare in cell and destroy destructible wall in the cell.
-	 * (If there's a powerup in the wall, it will be spawned.)
+	 * Also, if there's a powerup in the wall, it will be spawned.
 	 * @param cellContents - ArrayList to modify.
+	 * @param blastCause - The owner of the bomb that explodes this cell.
 	 * @return true if the cell does not stop the explosion from spreading.
 	 */
-	public static boolean addFlareInCell(ArrayList<String> cellContents) {
+	public static boolean addFlareInCell(ArrayList<String> cellContents, ArrayList<Integer> blastCause) {
 		int cellContentsLength = cellContents.size();
 		boolean isBlastCanContinue = false;
 		boolean isFlareHasBeenAdded = false;
-		// A cell may only contain at most one of the following: {F2, F1, ###, XXX, XBX, XPX}
+		// A cell may only contain at most one of the following: {###, XXX, XBX, XPX, R:<cause>}
+		// If a rubble is hit, merge its destruction-cause with blast-cause
 		// If a wall with popup is broken, the powerup must be spawned.
 		for (int i = 0; i < cellContentsLength; i++) {
 			String cellContent = cellContents.get(i);
 			if (cellContent.equals("F2")) {
 				isFlareHasBeenAdded = true;
 				isBlastCanContinue = true;
-				break;
 			}
 			else if (cellContent.equals("F1")) {
 				isFlareHasBeenAdded = true;
 				isBlastCanContinue = true;
 				cellContents.set(i, "F2");
-				break;
 			}
 			else if (cellContent.equals("###")) {
 				isFlareHasBeenAdded = true;
@@ -428,13 +471,22 @@ public class GameMachine
 				isFlareHasBeenAdded = true;
 				isBlastCanContinue = false;
 				cellContents.set(i, "F2");
+				// Add Rubble
+				String newRubbleString = mergeRubbleString(blastCause, null);
+				cellContents.add(newRubbleString);
+				cellContentsLength++;
 				break;
 			}
 			else if (cellContent.equals("XBX")) {
 				isFlareHasBeenAdded = true;
 				isBlastCanContinue = false;
 				cellContents.set(i, "F2");
+				// Spawn powerup
 				cellContents.add("+B");
+				cellContentsLength++;
+				// Add Rubble
+				String newRubbleString = mergeRubbleString(blastCause, null);
+				cellContents.add(newRubbleString);
 				cellContentsLength++;
 				break;
 			}
@@ -442,11 +494,25 @@ public class GameMachine
 				isFlareHasBeenAdded = true;
 				isBlastCanContinue = false;
 				cellContents.set(i, "F2");
+				// Spawn powerup
 				cellContents.add("+P");
+				cellContentsLength++;;
+				// Add Rubble
+				String newRubbleString = mergeRubbleString(blastCause, null);
+				cellContents.add(newRubbleString);
 				cellContentsLength++;
 				break;
 			}
+			else if (cellContent.startsWith("R")) {
+				isFlareHasBeenAdded = true;
+				isBlastCanContinue = false;
+				// Merge rubble
+				String newRubbleString = mergeRubbleString(blastCause, cellContent);
+				cellContents.set(i, newRubbleString);
+				break;
+			}
 		}
+		// If rubble processing should be made: create 
 		// If any of above elements was not found, create new flare
 		if (!isFlareHasBeenAdded) {
 			isFlareHasBeenAdded = true;
@@ -552,12 +618,48 @@ public class GameMachine
 		}
 		return returnArray;
 	}
-		
+	
+	/**
+	 * Clear all rubbles in this call and award players involved in its destruction
+	 * @param cellContents - cellContents to modify.
+	 */
+	public static void clearRubbleInCell(ArrayList<String> cellContents) {
+		int cellContentsLength = cellContents.size();
+		for (int i = 0; i < cellContentsLength; i++) {
+			String cellContent = cellContents.get(i);
+			if (cellContent.startsWith("R")) {
+				// Rubble string is in the form of "R:<cause>"
+				String[] cellContentSplit = cellContent.split(":");
+				String[] destructionCause =  cellContentSplit[1].split("\\.");
+				for (String playerIndex : destructionCause) {
+					int playerIndexInt = Integer.parseInt(playerIndex);
+					playerScores[playerIndexInt] += POINTS_DESTROY_WALL;
+				}
+				// Remove rubble from this cell
+				cellContents.remove(i);
+				cellContentsLength--;
+				break;
+			}
+		}
+	}
+	
+	/**
+	 * Disconnect all player who gets a timeout
+	 * (The sustem will no longer wait for their moves).
+	 */
+	public static void killTimeouts() {
+		for (int i = 0; i < numberOfPlayer; i++) {
+			if (isPlayerConnected[i] && playerMoves[i].equals("TIMEOUT")) {
+				isPlayerConnected[i] = false;
+			}
+		}
+	}
+	
 	//=======================================================================================
 	// MECHANIC-RELATED FUNCTIONS
 	//=======================================================================================
 	
-	public static void resolveFlares() {
+	public static void weakenFlares() {
 		// If there's a flare, decrease its count.
 		for (int row = 0; row < boardHeight; row++) {
 			for (int col = 0; col < boardWidth; col++) {
@@ -694,9 +796,13 @@ public class GameMachine
 					if (cellContent.startsWith("B")) {
 						// Bomb strings are in the form of "B:<owners>:<power>:<count>"
 						String[] cellContentSplit = cellContent.split(":");
-						String[] bombOwners = cellContentSplit[1].split("\\.");
+						String[] bombOwnersString = cellContentSplit[1].split("\\.");
 						int bombPower = Integer.parseInt(cellContentSplit[2]);
 						int bombCountdown = Integer.parseInt(cellContentSplit[3]);
+						ArrayList<Integer> bombOwners = new ArrayList<Integer>();
+						for (String ownerIndex : bombOwnersString) {
+							bombOwners.add(Integer.parseInt(ownerIndex));
+						}
 						bombCountdown--;
 						
 						if (bombCountdown == 0) {
@@ -708,17 +814,15 @@ public class GameMachine
 							cellContentsLength--;
 							i--;
 							// Recover remaining bomb-count of bomb owners
-							for (String ownerPlayerIndex : bombOwners) {
-								int bombOwnerIndex = Integer.parseInt(ownerPlayerIndex);
+							for (Integer bombOwnerIndex : bombOwners) {
 								playerBombsRemaining[bombOwnerIndex]++;
 							}
 							// Explode the cell
 							toCheckCellContents = iterCellContents;
 							deadPlayerIndices = getPlayerIndicesInCell(toCheckCellContents);
-							addFlareInCell(toCheckCellContents);
+							addFlareInCell(toCheckCellContents, bombOwners);
 							for (Integer deadPlayerIndex : deadPlayerIndices) {
-								for (String ownerPlayerIndex : bombOwners) {
-									int deathCause = Integer.parseInt(ownerPlayerIndex);
+								for (Integer deathCause : bombOwners) {
 									playerDeathCause[deadPlayerIndex].add(deathCause);
 								}
 							}
@@ -746,10 +850,9 @@ public class GameMachine
 										// Explode the cell
 										toCheckCellContents = getBoardCell(CheckRow, CheckCol);
 										deadPlayerIndices = getPlayerIndicesInCell(toCheckCellContents);
-										isBlastCanContinue = addFlareInCell(toCheckCellContents);
+										isBlastCanContinue = addFlareInCell(toCheckCellContents, bombOwners);
 										for (Integer deadPlayerIndex : deadPlayerIndices) {
-											for (String ownerPlayerIndex : bombOwners) {
-												int deathCause = Integer.parseInt(ownerPlayerIndex);
+											for (Integer deathCause : bombOwners) {
 												playerDeathCause[deadPlayerIndex].add(deathCause);
 											}
 										}
@@ -796,6 +899,16 @@ public class GameMachine
 		}
 	}
 			
+	public static void clearRubbles() {
+		// If there's a rubble, grant points to players that cause its destruction 
+		for (int row = 0; row < boardHeight; row++) {
+			for (int col = 0; col < boardWidth; col++) {
+				ArrayList<String> iterBoardCell = getBoardCell(row, col);
+				clearRubbleInCell(iterBoardCell);
+			}
+		}
+	}
+	
 	public static void placeBombs() {
 		for (int i = 0; i < numberOfPlayer; i++) {
 			if (isPlayerConnected[i]) {
@@ -810,18 +923,4 @@ public class GameMachine
 		}
 	}
 	
-	/**
-	 * Disconnect all player who gets a timeout
-	 * (The sustem will no longer wait for their moves).
-	 */
-	public static void killTimeouts() {
-		for (int i = 0; i < numberOfPlayer; i++) {
-			if (isPlayerConnected[i] && playerMoves[i].equals("TIMEOUT")) {
-				isPlayerConnected[i] = false;
-			}
-		}
-	}
-
-
-
 }

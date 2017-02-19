@@ -1,14 +1,14 @@
 package Server;
 
-public class ProcessHandler
+public class PlayerProcessBridge
 {
-	public static final int DELAY_DURATION_MS = 10;
+	public static final int DELAY_DURATION_MS = 0;
 	
 	public String playerName = null;
 	public PlayerProcess playerProcess = null;
 	public int lastTurnHandled = 0;
 	
-	public ProcessHandler(String playerName, PlayerProcess process) {
+	public PlayerProcessBridge(String playerName, PlayerProcess process) {
 		this.playerName = playerName;
 		this.playerProcess = process;
 		this.lastTurnHandled = -1;
@@ -31,7 +31,8 @@ public class ProcessHandler
 			if (currentTurn > lastTurnHandled) {
 				// Give input (board state)
 				String boardStateString = GameMachine.getBoardStateString();
-				playerProcess.sendLine(boardStateString);
+				playerProcess.sendLine("boardStateString");
+				playerProcess.sendLine("END");
 				
 				// Fetch player move (starts with ">> ")
 				// If a move is detected, report it to GameMachine.
