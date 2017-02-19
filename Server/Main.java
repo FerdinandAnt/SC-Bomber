@@ -48,6 +48,13 @@ public class Main
 			iterProcessThread.start();
 		}
 		
-		System.out.println("Done!");
+		// Block while the game runs,
+		// Terminate everything after 1s after it ends.
+		try {
+			while (GameMachine.isGameRunning) {};
+			Thread.sleep(5000);
+		}
+		catch (InterruptedException e) {}		
+		System.exit(0);
 	}
 }

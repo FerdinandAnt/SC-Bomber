@@ -7,7 +7,7 @@ public class C1
 		
 		while (true) {
 			String input = scanner.nextLine();
-			System.out.println(">> MOVE LEFT");
+			System.out.println(">> MOVE RIGHT");
 		}
 	}
 }

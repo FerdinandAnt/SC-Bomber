@@ -7,8 +7,8 @@ public class C2
 		
 		while (true) {
 			String string = scanner.nextLine();
-			System.out.println(string);
-			throw new NullPointerException();
+			System.out.println(">> MOVE RIGHT");
+			//throw new NullPointerException();
 		}
 	}
 }

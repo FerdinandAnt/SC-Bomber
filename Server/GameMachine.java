@@ -1,22 +1,26 @@
 package Server;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.TreeSet;
+import javax.swing.plaf.basic.BasicInternalFrameTitlePane.MaximizeAction;
 import javax.swing.plaf.synth.SynthSeparatorUI;
 
 public class GameMachine
 {
 	public static final int TURN_TIME_LIMIT_MS = 1200;
-	public static final int TURN_LIMIT = 1000;
+	public static final int TURN_LIMIT = 3000;
 	
 	public static final int POINTS_DESTROY_WALL = 10;
 	public static final int POINTS_GET_POWERUP = 50;
 	public static final int POINTS_KILL_PLAYER = 200;
 	
-	
 	public static int turn = 0;
 	public static int numberOfPlayer = 0;
+	public static boolean isGameRunning = false;
 	public static String[] playerNames = null;
 	public static String[] playerMoves = null;
 	public static HashMap<String,Integer> playerIndexMap = null;
@@ -25,29 +29,23 @@ public class GameMachine
 	public static int boardHeight = 0;
 	public static int boardWidth = 0;
 	public static ArrayList<ArrayList<ArrayList<String>>> board = null;
+	public static String boardStateString = null;
 	
 	// Player status
 	public static boolean[] isPlayerConnected = null;
 	public static boolean[] isPlayerAlive = null;
 	public static int[] playerScores = null;
 	public static int[] playerBombsRemaining = null;
+	public static int[] playerBombsCount = null;
 	public static int[] playerBombsPower = null;
 	public static int[] playerPositionsRow = null;
 	public static int[] playerPositionsCol = null;
 	
 	public GameMachine() {}	
 	
-	/**
-	 * To obtain a cell in board, given row and column index.
-	 * @param row - row index (0..boardHeight)
-	 * @param col - column index (0..boardWidth)
-	 * @return a cell in board
-	 */
-	public static ArrayList<String> getBoardCell(int row, int col) {
-		if (board == null) return null;
-		if (board.get(row) == null) return null;
-		return board.get(row).get(col);
-	}
+	//=======================================================================================
+	// INITIATION / RUNTIME
+	//=======================================================================================
 	
 	/**
 	 * Initiate the game machine to start a new game.
@@ -57,19 +55,22 @@ public class GameMachine
 		// Prepare player data
 		GameMachine.playerNames = playerNames.clone();
 		GameMachine.numberOfPlayer = numberOfPlayer;
-		GameMachine.turn = 0;
 		
+		playerMoves = new String[numberOfPlayer];
 		playerIndexMap = new HashMap<String,Integer>();
 		playerBombsRemaining = new int[numberOfPlayer];
 		playerBombsPower = new int[numberOfPlayer];
+		playerBombsCount = new int[numberOfPlayer];
 		isPlayerConnected = new boolean[numberOfPlayer];
 		isPlayerAlive = new boolean[numberOfPlayer];
 		playerScores = new int[numberOfPlayer];
 		playerPositionsRow = new int[numberOfPlayer];
 		playerPositionsCol = new int[numberOfPlayer];
 		for (int i = 0; i < numberOfPlayer; i++) {
+			playerMoves[i] = null;
 			playerBombsRemaining[i] = 1;
 			playerBombsPower[i] = 1;
+			playerBombsCount[i] = 1;
 			playerScores[i] = 0;
 			isPlayerConnected[i] = false;
 			playerIndexMap.put(playerNames[i], i);
@@ -112,33 +113,241 @@ public class GameMachine
 					iterBoardCell.add("XXX");
 				}
 				else if (boardMapCharacter == 'B') {
-					// spawn destructible wall with Bomb+ powerup
+					// Spawn destructible wall with Bomb+ powerup
 					iterBoardCell.add("XBX");
 				}
 				else if (boardMapCharacter == 'P') {
-					// spawn destructible wall with Power+ powerup
+					// Spawn destructible wall with Power+ powerup
 					iterBoardCell.add("XPX");
+				}
+				else if (boardMapCharacter == '@') {
+					// Spawn a bomb (for debug purposes)
+					// Treated as: spawned by P0, power:3, count:2
+					// (This will explode on turn 1)
+					iterBoardCell.add("B:0:3:2");
 				}
 			}
 		}
+		
+		// Generate initial boardStateString
+		reloadBoardStateString();
+		System.out.println("=======================");
+		System.out.println(boardStateString);
+	}
+	
+	/**
+	 * Run the game.
+	 */
+	public static void run() {
+		GameMachine.isGameRunning = true;
+		
+		while (true) {
+			System.out.println("-----------------------");
+			System.out.println("ACTION " + turn);
+			
+			boolean allPlayerHasMoved = false;
+			long turnStartTimestamp = System.currentTimeMillis();
+			while (!allPlayerHasMoved) {
+				// Wait until all player has moved
+				allPlayerHasMoved = true;
+				for (int i = 0; i < numberOfPlayer; i++) {
+					if (playerMoves[i] == null && isPlayerConnected[i]) {
+						allPlayerHasMoved = false;
+					}
+				}
 				
-		// Prepare for first turn
-		playerNames = new String[numberOfPlayer];
-		playerMoves = new String[numberOfPlayer];
-		for (int i = 0; i < numberOfPlayer; i++) {
-			playerNames[i] = "1306382032";
-			playerMoves[i] = null;
+				// Check if turn limit expires
+				// Any player that has not move will "STAY"
+				long turnTimeElapsedMs = System.currentTimeMillis() - turnStartTimestamp;
+				if (turnTimeElapsedMs > TURN_TIME_LIMIT_MS) {
+					for (int i = 0; i < numberOfPlayer; i++) {
+						if (playerMoves[i] == null) {
+							playerMoves[i] = "TIMEOUT";
+						}
+					}
+					allPlayerHasMoved = true;
+				}
+			}
+			
+			// Process/resolve the board
+			for (int i = 0; i < numberOfPlayer; i++) {
+				System.out.println("" + playerNames[i] + ": " + playerMoves[i]);
+			}
+			resolveFlares();
+			movePlayers();
+			grabPowerups();
+			tickBombs();
+			placeBombs();
+			killTimeouts();
+						
+			// Check for stopping condition
+			// Stopping condition: exceeds turn limit or at most 1 player remaining
+			boolean isGameToBeStopped = false;
+			int numberOfPlayersAlive = 0;
+			for (int i = 0; i < numberOfPlayer; i++) {
+				numberOfPlayersAlive += (isPlayerConnected[i])? 1 : 0;
+			}
+			if (((turn + 1) >= TURN_LIMIT) || numberOfPlayersAlive <= 1) {
+				isGameToBeStopped = true;
+			}
+			
+			// Increment turn
+			turn++;
+			for (int i = 0; i < numberOfPlayer; i++) {
+				playerMoves[i] = null;
+			}
+			
+			// Generate new board state string
+			reloadBoardStateString();
+			System.out.println("=======================");
+			System.out.println(boardStateString);
+						
+			if (isGameToBeStopped) {
+				System.out.println("-----------------------");
+				System.out.println("GAME ENDS!");
+				GameMachine.isGameRunning = false;
+				break;
+			}
 		}
 	}
 	
+	/**
+	 * Register a player's move.
+	 * @param playerName - playerName
+	 * @param move - String of move made
+	 * @return true if the move is successfully registered.
+	 */
+	public static boolean reportMove(String playerName, String move) {
+		Integer playerNameIndex = playerIndexMap.get(playerName);
+		// Register player's move
+		if (playerNameIndex != null && isPlayerConnected[playerNameIndex] && isGameRunning) {
+			playerMoves[playerNameIndex] = move;
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 	
+	/**
+	 * Reload board-state string representayion for current turn
+	 * (After all actions have been resolved)
+	 */
+	public static void reloadBoardStateString() {
+		boardStateString = "";
+		
+		// Append turn number
+		boardStateString += "TURN " + turn + "\n";
+		
+		// Append player data
+		boardStateString += "PLAYER " + numberOfPlayer + "\n";
+		for (int playerIndex = 0; playerIndex < numberOfPlayer; playerIndex++) {
+			String playerState = "";
+			// Append player's index and name
+			playerState += "P" + playerIndex + " ";
+			playerState += playerNames[playerIndex] + " ";
+			// append player bombs state
+			playerState += "Bomb:" + playerBombsRemaining[playerIndex] + "/" + playerBombsCount[playerIndex] + " ";
+			playerState += "Range:" + playerBombsPower[playerIndex] + " ";
+			// Append player's status (dead/offline/alive)
+			if (!isPlayerAlive[playerIndex]) {
+				playerState += "Dead";
+			}
+			else if (!isPlayerConnected[playerIndex]) {
+				playerState += "Offline";
+			}
+			else {
+				playerState += "Alive";
+			}
+			// Append player score
+			playerState += " " + playerScores[playerIndex];
+			boardStateString += playerState + "\n";
+		}
+		
+		// Append board state
+		boardStateString += "BOARD " + boardHeight + " " + boardWidth;
+		for (int row = 0; row < boardHeight; row++) {
+			String boardStringLine = "\n";
+			for (int col = 0; col < boardWidth; col++) {
+				ArrayList<String> cellContents = getBoardCell(row, col);
+				int cellContentsLength = cellContents.size();
+				String cellContentString = "";
+				for (int i = 0; i < cellContentsLength; i++) {
+					String cellContent = cellContents.get(i);
+					// Add speparator?
+					if (i > 0) {
+						cellContentString += ";"; 
+					}
+					// Bombs and players must be parsed.
+					// Otherwise, add to `cellContentString` as-is
+					if (cellContent.startsWith("B")) {
+						// Bomb strings are in the form of "B:<owners>:<power>:<count>"
+						// Just display the power and the countdown.
+						String[] cellContentSplit = cellContent.split(":");
+						int bombPower = Integer.parseInt(cellContentSplit[2]);
+						int bombCountdown = Integer.parseInt(cellContentSplit[3]);
+						cellContentString += "B" + bombPower + "" + bombCountdown;
+					}
+					else if (cellContent.startsWith("P")) {
+						cellContentString += cellContent.substring(1);
+					}
+					else {
+						cellContentString += cellContent;
+					}					
+				}
+				// Applying padding:
+				int cellContentStringLength = cellContentString.length();
+				switch (cellContentStringLength) {
+					case 0:
+						cellContentString = "     ";
+						break;
+					case 1:
+						cellContentString = "  " + cellContentString + "  ";
+						break;
+					case 2:
+						cellContentString = " " + cellContentString + "  ";
+						break;
+					case 3:
+						cellContentString = " " + cellContentString + " ";
+						break;
+					case 4:
+						cellContentString = cellContentString + " ";
+						break;
+				}
+				boardStringLine += "[" + cellContentString + "]";
+			}
+			boardStateString += boardStringLine;
+		}
+	}
+	
+	/**
+	 * Get string representation of the board at current turn.
+	 * @return String representation of the board at current turn.
+	 */
+	public static String getBoardStateString() {
+		return boardStateString;
+	}
+		
 	//=======================================================================================
-	// MECHANIC HELPERS
+	// BOARD-RELATED HELPERS METHODS
+	//=======================================================================================
+	
+	/**
+	 * To obtain a cell in board, given row and column index.
+	 * @param row - row index (0..boardHeight)
+	 * @param col - column index (0..boardWidth)
+	 * @return a cell in board.
+	 */
+	public static ArrayList<String> getBoardCell(int row, int col) {
+		if (board == null) return null;
+		if (board.get(row) == null) return null;
+		return board.get(row).get(col);
+	}
 	
 	/**
 	 * Remove a player from this cell (e.g. because of death/movement).
-	 * @param cellContents
-	 * @param playerIndex
+	 * @param cellContents - cellContents to modify.
+	 * @param playerIndex - index of player (0..numberOfPlayer).
 	 */
 	public static void removePlayerFromCell(ArrayList<String> cellContents, int playerIndex) {
 		String targetString = "P" + playerIndex;
@@ -148,8 +357,8 @@ public class GameMachine
 	/**
 	 * Adds a player to a cell if the player is not already there
 	 * (e.g. because of movement).
-	 * @param cellContents
-	 * @param playerIndex
+	 * @param cellContents - cellContents to modify.
+	 * @param playerIndex - index of player (0..numberOfPlayer).
 	 */
 	public static void addPlayerToCell(ArrayList<String> cellContents, int playerIndex) {
 		String targetString = "P" + playerIndex;
@@ -160,14 +369,14 @@ public class GameMachine
 		
 	/**
 	 * Reduce flare counts (and remove those that have expired).
-	 * @param cellContents - ArrayList to modify
+	 * @param cellContents - cellContents to modify.
 	 */
 	public static void decreaseFlaresInCell(ArrayList<String> cellContents) {
 		int cellContentsLength = cellContents.size();
 		for (int i = 0; i < cellContentsLength; i++) {
 			String cellContent = cellContents.get(i);
-			// If it's "F2F", weaken to "F1F"
-			// If it's "F1F", remove it from the array
+			// If it's "F2", weaken to "F1"
+			// If it's "F1", remove it from the array
 			if (cellContent.startsWith("F")) {
 				int flareCountdown = cellContent.charAt(1) - '0';
 				flareCountdown = flareCountdown - 1;
@@ -177,14 +386,176 @@ public class GameMachine
 					i--;
 				}
 				else {
-					cellContents.set(i, "F" + flareCountdown + "F");
+					cellContents.set(i, "F" + flareCountdown);
+				}
+				// Only one flare may exist in a cell
+				break;
+			}
+		}
+	}
+	
+	/**
+	 * Add a flare in cell and destroy destructible wall in the cell.
+	 * (If there's a powerup in the wall, it will be spawned.)
+	 * @param cellContents - ArrayList to modify.
+	 * @return true if the cell does not stop the explosion from spreading.
+	 */
+	public static boolean addFlareInCell(ArrayList<String> cellContents) {
+		int cellContentsLength = cellContents.size();
+		boolean isBlastCanContinue = false;
+		boolean isFlareHasBeenAdded = false;
+		// A cell may only contain at most one of the following: {F2, F1, ###, XXX, XBX, XPX}
+		// If a wall with popup is broken, the powerup must be spawned.
+		for (int i = 0; i < cellContentsLength; i++) {
+			String cellContent = cellContents.get(i);
+			if (cellContent.equals("F2")) {
+				isFlareHasBeenAdded = true;
+				isBlastCanContinue = true;
+				break;
+			}
+			else if (cellContent.equals("F1")) {
+				isFlareHasBeenAdded = true;
+				isBlastCanContinue = true;
+				cellContents.set(i, "F2");
+				break;
+			}
+			else if (cellContent.equals("###")) {
+				isFlareHasBeenAdded = true;
+				isBlastCanContinue = false;
+				break;
+			}
+			else if (cellContent.equals("XXX")) {
+				isFlareHasBeenAdded = true;
+				isBlastCanContinue = false;
+				cellContents.set(i, "F2");
+				break;
+			}
+			else if (cellContent.equals("XBX")) {
+				isFlareHasBeenAdded = true;
+				isBlastCanContinue = false;
+				cellContents.set(i, "F2");
+				cellContents.add("+B");
+				cellContentsLength++;
+				break;
+			}
+			else if (cellContent.equals("XPX")) {
+				isFlareHasBeenAdded = true;
+				isBlastCanContinue = false;
+				cellContents.set(i, "F2");
+				cellContents.add("+P");
+				cellContentsLength++;
+				break;
+			}
+		}
+		// If any of above elements was not found, create new flare
+		if (!isFlareHasBeenAdded) {
+			isFlareHasBeenAdded = true;
+			isBlastCanContinue = true;
+			cellContents.add("F2");
+		}
+		// If this cell contains a bomb (max 1), decrease its countdown to 1
+		cellContentsLength = cellContents.size();
+		for (int i = 0; i < cellContentsLength; i++) {
+			String cellContent = cellContents.get(i);
+			if (cellContent.startsWith("B")) {
+				// Bomb strings are in the form of "B:<owners>:<power>:<count>"
+				// The owners (split[1]) and power (split[2]) stays the same
+				String[] cellContentSplit = cellContent.split(":");
+				String newBombState = "B:" + cellContentSplit[1] + ":" + cellContentSplit[2] + ":" + 1;
+				cellContents.set(i, newBombState);
+			}
+		}
+		return isBlastCanContinue;
+	}
+	
+	/**
+	 * Check if a cell contains flare.
+	 * @param cellContents - cellContents to scan.
+	 * @return true if cellContents contains flare.
+	 */
+	public static boolean isCellContainsFlare(ArrayList<String> cellContents) {
+		for (String cellContent : cellContents) {
+			if (cellContent.startsWith("F")) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	/**
+	 * Drop a bomb in a cell.
+	 * @param cellContents - cellContents to modify.
+	 * @param playerIndex - player who drops the bomb.
+	 * @return true if a bomb is dropped there.
+	 */
+	public static boolean tryDropBombInCell(ArrayList<String> cellContents, int playerIndex) {
+		// Cannot drop bomb if the player can't drop another bomb.
+		if (playerBombsRemaining[playerIndex] == 0) {
+			return false;
+		}
+		// Cannot drop bomb if the cell already has a bomb not recently placed (count!=8)
+		// If there's a bomb with count==8 (recently placed), merge it with the bomb.
+		int cellContentsLength = cellContents.size();
+		boolean isBombDropped = false;
+		boolean isBombFound = false;
+		for (int i = 0; i < cellContentsLength; i++) {
+			String cellContent = cellContents.get(i);
+			if (cellContent.startsWith("B")) {
+				isBombFound = true;
+				String[] cellContentSplit = cellContent.split(":");
+				String bombOwnersString = cellContentSplit[1];
+				int bombPower = Integer.parseInt(cellContentSplit[2]);
+				int bombCountdown = Integer.parseInt(cellContentSplit[3]);
+				if (bombCountdown == 8) {
+					// Can place bomb here, merging with existing bomb
+					bombOwnersString = bombOwnersString + "." + playerIndex;
+					bombPower = Math.max(bombPower, playerBombsPower[playerIndex]);
+					String newBombString = "B:" + bombOwnersString + ":" + bombPower + ":" + 8;
+					cellContents.set(i, newBombString);
+					playerBombsRemaining[playerIndex]--;
+					isBombDropped = true;
+					return true;
+				}
+				else {
+					// Cannot place bomb here
+					isBombDropped = false;
+					return false;
 				}
 			}
 		}
+		// If there's no bomb, drop one here
+		// Bomb strings are in the form of "B:<owners>:<power>:<count>"
+		if (!isBombFound) {
+			int bombPower = playerBombsPower[playerIndex];
+			String newBombString = "B:" + playerIndex + ":" + bombPower + ":" + 8;
+			cellContents.add(newBombString);
+			playerBombsRemaining[playerIndex]--;
+			isBombDropped = true;
+		}
+		return isBombDropped;
+	}
+	
+	/**
+	 * Get all player indices in a cell.
+	 * @param cellContents - cellContents to scan.
+	 * @return ArrayList containing indices of player in a cell.
+	 */
+	public static ArrayList<Integer> getPlayerIndicesInCell(ArrayList<String> cellContents) {
+		ArrayList<Integer> returnArray = new ArrayList<Integer>();
+		int cellContentsLength = cellContents.size();
+		for (int i = 0; i < cellContentsLength; i++) {
+			String cellContent = cellContents.get(i);
+			if (cellContent.startsWith("P")) {
+				int playerIndex = cellContent.charAt(1) - '0';
+				returnArray.add(playerIndex);
+			}
+		}
+		return returnArray;
 	}
 		
 	//=======================================================================================
 	// MECHANIC-RELATED FUNCTIONS
+	//=======================================================================================
 	
 	public static void resolveFlares() {
 		// If there's a flare, decrease its count.
@@ -264,29 +635,185 @@ public class GameMachine
 		}
 	}
 	
-	/**
-	 * Update player's strength if he grabs a powerup
-	 */
 	public static void grabPowerups() {
 		// Iterate only from players: If a player steps on a powerup,
 		// all players in that cell gains the buff and the points.
-		// TODO
 		for (int i = 0; i < numberOfPlayer; i++) {
 			if (isPlayerConnected[i]) {
 				int playerPositionRow = playerPositionsRow[i];
 				int playerPositionCol = playerPositionsCol[i];
+				ArrayList<String> cellContents = getBoardCell(playerPositionRow, playerPositionCol);
+				ArrayList<Integer> playerIndicesInCell = getPlayerIndicesInCell(cellContents);
+				int cellContentsLength = cellContents.size();
+				// Check if powerup exists
+				for (int j = 0; j < cellContentsLength; j++) {
+					String cellContent = cellContents.get(j);
+					if (cellContent.startsWith("+")) {
+						// What type of powerup?
+						switch (cellContent.charAt(1)) {
+							case 'B':
+								for (Integer playerIndex : playerIndicesInCell) {
+									playerBombsRemaining[playerIndex]++;
+									playerBombsCount[playerIndex]++;
+									playerScores[playerIndex] += POINTS_GET_POWERUP;
+								}
+								break;
+							case 'P':
+								for (Integer playerIndex : playerIndicesInCell) {
+									playerBombsPower[playerIndex]++;
+									playerScores[playerIndex] += POINTS_GET_POWERUP;
+								}
+								break;
+						}
+						// Remove powerup occurence in that cell
+						cellContents.remove(j);
+						cellContentsLength--;
+						j--;
+					}
+				}
 			}
 		}
 	}
 	
 	public static void tickBombs() {
-		// TODO
+		// For tallying player's death because of bombs
+		@SuppressWarnings("unchecked")
+		TreeSet<Integer>[] playerDeathCause = new TreeSet[numberOfPlayer];
+		boolean isBombKillHappened = false;
+		for (int i = 0; i < numberOfPlayer; i++) {
+			playerDeathCause[i] = new TreeSet<Integer>();
+		}
+		
+		// Decrease bomb counts or fill with flare
+		for (int row = 0; row < boardHeight; row++) {
+			for (int col = 0; col < boardWidth; col++) {
+				ArrayList<String> iterCellContents = getBoardCell(row, col);
+				int cellContentsLength = iterCellContents.size();
+				for (int i = 0; i < cellContentsLength; i++) {
+					String cellContent = iterCellContents.get(i);
+					if (cellContent.startsWith("B")) {
+						// Bomb strings are in the form of "B:<owners>:<power>:<count>"
+						String[] cellContentSplit = cellContent.split(":");
+						String[] bombOwners = cellContentSplit[1].split("\\.");
+						int bombPower = Integer.parseInt(cellContentSplit[2]);
+						int bombCountdown = Integer.parseInt(cellContentSplit[3]);
+						bombCountdown--;
+						
+						if (bombCountdown == 0) {
+							// The bomb is exploding
+							ArrayList<String> toCheckCellContents = null;
+							ArrayList<Integer> deadPlayerIndices = null;		
+							// Remove the bomb from the cellContent
+							iterCellContents.remove(i);
+							cellContentsLength--;
+							i--;
+							// Recover remaining bomb-count of bomb owners
+							for (String ownerPlayerIndex : bombOwners) {
+								int bombOwnerIndex = Integer.parseInt(ownerPlayerIndex);
+								playerBombsRemaining[bombOwnerIndex]++;
+							}
+							// Explode the cell
+							toCheckCellContents = iterCellContents;
+							deadPlayerIndices = getPlayerIndicesInCell(toCheckCellContents);
+							addFlareInCell(toCheckCellContents);
+							for (Integer deadPlayerIndex : deadPlayerIndices) {
+								for (String ownerPlayerIndex : bombOwners) {
+									int deathCause = Integer.parseInt(ownerPlayerIndex);
+									playerDeathCause[deadPlayerIndex].add(deathCause);
+								}
+							}
+							// Scan up, down, left, right
+							int[] rowIncrementer = {-1, 1, 0, 0};
+							int[] colIncrementer = {0, 0, -1, 1};
+							for (int directionIndex = 0; directionIndex < 4 ; directionIndex++) {
+								int CheckRow = row;
+								int CheckCol = col;
+								int distance = 0;
+								while (true) {
+									boolean isBlastCanContinue = true;
+									CheckRow += rowIncrementer[directionIndex];
+									CheckCol += colIncrementer[directionIndex];
+									distance++;
+									if ((CheckRow < 0) || (CheckRow >= boardHeight) || (CheckCol < 0) || (CheckCol >= boardWidth)) {
+										// Stop spreading if already out of bounds
+										break;
+									}
+									else if (distance > bombPower) {
+										// Stop spreading if the bomb can't reach this cell
+										break;
+									}
+									else {
+										// Explode the cell
+										toCheckCellContents = getBoardCell(CheckRow, CheckCol);
+										deadPlayerIndices = getPlayerIndicesInCell(toCheckCellContents);
+										isBlastCanContinue = addFlareInCell(toCheckCellContents);
+										for (Integer deadPlayerIndex : deadPlayerIndices) {
+											for (String ownerPlayerIndex : bombOwners) {
+												int deathCause = Integer.parseInt(ownerPlayerIndex);
+												playerDeathCause[deadPlayerIndex].add(deathCause);
+											}
+										}
+									}
+									// Stop if the blast can't continue in this direction
+									if (!isBlastCanContinue) {
+										break;
+									}
+								}
+							}
+						}
+						else {
+							// The bomb does not explode yet
+							String newBombState = "B:" + cellContentSplit[1] + ":" + bombPower + ":" + bombCountdown;
+							iterCellContents.set(i, newBombState);
+						}
+					}
+				}	
+			}
+		}
+		
+		// Kill players on flare
+		for (int i = 0; i < numberOfPlayer; i++) {
+			if (isPlayerAlive[i]) {
+				int playerRow = playerPositionsRow[i];
+				int playerCol = playerPositionsCol[i];
+				boolean isCellContainsFlare = false;
+				ArrayList<String> cellContents = getBoardCell(playerRow, playerCol);
+				if (isCellContainsFlare(cellContents)) {
+					isPlayerAlive[i] = false;
+					isPlayerConnected[i] = false;
+					removePlayerFromCell(cellContents, i);
+				}
+			}
+		}
+		
+		// Award kill points if somebody died because of bombs.
+		for (int deadPlayerIndex = 0; deadPlayerIndex < numberOfPlayer; deadPlayerIndex++) {
+			for (Integer causePlayerIndex : playerDeathCause[deadPlayerIndex]) {
+				if (causePlayerIndex != deadPlayerIndex) {
+					playerScores[causePlayerIndex] += POINTS_KILL_PLAYER;
+				}
+			}
+		}
 	}
 			
 	public static void placeBombs() {
-		// TODO
+		for (int i = 0; i < numberOfPlayer; i++) {
+			if (isPlayerConnected[i]) {
+				String move = playerMoves[i];
+				if (move.equals("DROP BOMB")) {
+					int playerRow = playerPositionsRow[i];
+					int playerCol = playerPositionsCol[i];
+					ArrayList<String> cellContents = getBoardCell(playerRow, playerCol);
+					tryDropBombInCell(cellContents, i);
+				}
+			}
+		}
 	}
 	
+	/**
+	 * Disconnect all player who gets a timeout
+	 * (The sustem will no longer wait for their moves).
+	 */
 	public static void killTimeouts() {
 		for (int i = 0; i < numberOfPlayer; i++) {
 			if (isPlayerConnected[i] && playerMoves[i].equals("TIMEOUT")) {
@@ -294,77 +821,7 @@ public class GameMachine
 			}
 		}
 	}
-	
-	/**
-	 * Run the game.
-	 */
-	public static void run() {
-		while (true) {
-			System.out.println("=======================");
-			System.out.println("TURN " + turn);
-			
-			boolean allPlayerHasMoved = false;
-			long turnStartTimestamp = System.currentTimeMillis();
-			while (!allPlayerHasMoved) {
-				// Wait until all player has moved
-				allPlayerHasMoved = true;
-				for (int i = 0; i < numberOfPlayer; i++) {
-					if (playerMoves[i] == null && isPlayerConnected[i]) {
-						allPlayerHasMoved = false;
-					}
-				}
-				
-				// Check if turn limit expires
-				// Any player that has not move will "STAY"
-				long turnTimeElapsedMs = System.currentTimeMillis() - turnStartTimestamp;
-				if (turnTimeElapsedMs > TURN_TIME_LIMIT_MS) {
-					System.out.println("TIMEOUT!");
-					for (int i = 0; i < numberOfPlayer; i++) {
-						if (playerMoves[i] == null) {
-							playerMoves[i] = "TIMEOUT";
-						}
-					}
-					allPlayerHasMoved = true;
-				}
-			}
-			
-			// Process the board
-			System.out.println("Processing board!");
-			for (int i = 0; i < numberOfPlayer; i++) {
-				System.out.println("MOVE " + playerNames[i] + ": " + playerMoves[i]);
-			}
-			resolveFlares();
-			movePlayers();
-			grabPowerups();
-			tickBombs();
-			placeBombs();
-			killTimeouts();
-			
-			// Prepare for next turn
-			turn++;
-			for (int i = 0; i < numberOfPlayer; i++) {
-				playerMoves[i] = null;
-			}			
-		}
-	}
-	
-	/**
-	 * Register a player's move.
-	 * @param playerName - playerName
-	 * @param move - String of move made
-	 * @return true if the move is successfully registered.
-	 */
-	public static boolean reportMove(String playerName, String move) {
-		System.out.println(">> Report from " + playerName + ": " + move);
-		Integer playerNamesIndex = playerIndexMap.get(playerName);
-		
-		// Register player's move
-		if (playerNamesIndex != null) {
-			playerMoves[playerNamesIndex] = move;
-			return true;
-		}
-		else {
-			return false;
-		}
-	}
+
+
+
 }

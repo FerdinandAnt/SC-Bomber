@@ -14,6 +14,7 @@ public class PlayerProcess
 	
 	public PlayerProcess(String classPath, String className) {
 		try {
+			// XXX: If the startup is slow, ProcessBuilder could be the cause (?)
 			processBuilder = new ProcessBuilder("java.exe", "-cp", classPath, className);
 			process = processBuilder.start();
 			in = new Scanner(process.getInputStream());

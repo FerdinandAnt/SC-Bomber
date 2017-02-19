@@ -2,6 +2,8 @@ package Server;
 
 public class ProcessHandler
 {
+	public static final int DELAY_DURATION_MS = 10;
+	
 	public String playerName = null;
 	public PlayerProcess playerProcess = null;
 	public int lastTurnHandled = 0;
@@ -28,18 +30,19 @@ public class ProcessHandler
 			
 			if (currentTurn > lastTurnHandled) {
 				// Give input (board state)
-				System.out.println(">> Sending to " + playerName);
-				playerProcess.sendLine("TURN " + currentTurn);
+				String boardStateString = GameMachine.getBoardStateString();
+				playerProcess.sendLine(boardStateString);
 				
 				// Fetch player move (starts with ">> ")
 				// If a move is detected, report it to GameMachine.
 				boolean isplayerMoveObtained = false;
 				while (!isplayerMoveObtained) {
 					String playerMove = playerProcess.getNextLine();
+					//System.out.println(playerName + ": " + playerMove);
 					if (playerMove.startsWith(">> ")) {
 						String parsedPlayerMove = playerMove.substring(3);
-						System.out.println(">> Receiving from " + playerName + ":");
-						System.out.println(parsedPlayerMove);
+						//System.out.println(">> Receiving from " + playerName + ":");
+						//System.out.println(parsedPlayerMove);
 						GameMachine.reportMove(playerName, parsedPlayerMove);
 						lastTurnHandled = currentTurn;
 						isplayerMoveObtained = true;
@@ -47,8 +50,8 @@ public class ProcessHandler
 				}
 			}
 			
-			// Sleep for 100ms before trying another round
-			sleep(100);
+			// Sleep to prevent race condition (?)
+			sleep(DELAY_DURATION_MS);
 		}
 	}
 	
