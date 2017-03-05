@@ -2,7 +2,8 @@ package Server;
 
 public class PlayerProcessBridge
 {
-	public static final int DELAY_DURATION_MS = 0;
+	public static final boolean DEBUG_OUTPUT_ENABLED = false;
+	public static final int DELAY_DURATION_MS = 20;
 	
 	public String playerName = null;
 	public PlayerProcess playerProcess = null;
@@ -31,19 +32,24 @@ public class PlayerProcessBridge
 			if (currentTurn > lastTurnHandled) {
 				// Give input (board state)
 				String boardStateString = GameMachine.getBoardStateString();
-				playerProcess.sendLine("boardStateString");
+				playerProcess.sendLine(boardStateString);
 				playerProcess.sendLine("END");
 				
 				// Fetch player move (starts with ">> ")
 				// If a move is detected, report it to GameMachine.
 				boolean isplayerMoveObtained = false;
 				while (!isplayerMoveObtained) {
-					String playerMove = playerProcess.getNextLine();
-					//System.out.println(playerName + ": " + playerMove);
+					String playerMove = "";
+					if (playerProcess.hasNextLine()) {
+						playerMove = playerProcess.getNextLine();
+						if (DEBUG_OUTPUT_ENABLED) {
+							System.out.print("[" + playerName + "]: ");
+							System.out.println(playerMove);
+						}
+					}
+					
 					if (playerMove.startsWith(">> ")) {
 						String parsedPlayerMove = playerMove.substring(3);
-						//System.out.println(">> Receiving from " + playerName + ":");
-						//System.out.println(parsedPlayerMove);
 						GameMachine.reportMove(playerName, parsedPlayerMove);
 						lastTurnHandled = currentTurn;
 						isplayerMoveObtained = true;

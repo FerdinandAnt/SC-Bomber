@@ -13,7 +13,7 @@ import javax.swing.plaf.synth.SynthSeparatorUI;
 public class GameMachine
 {
 	public static final int TURN_TIME_LIMIT_MS = 1200;
-	public static final int TURN_LIMIT = 5000;
+	public static final int TURN_LIMIT = 2000;
 	
 	public static final int POINTS_DESTROY_WALL = 10;
 	public static final int POINTS_GET_POWERUP = 50;
@@ -217,6 +217,8 @@ public class GameMachine
 				break;
 			}
 		}
+		
+		System.exit(0);
 	}
 	
 	/**

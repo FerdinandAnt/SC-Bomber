@@ -3,7 +3,6 @@ package Server;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.util.Arrays;
 
 public class Main
 {
@@ -14,7 +13,7 @@ public class Main
 	public static String[] classNames = {"ContohAI1", "ContohAI2"};
 	public static String boardMap = "0....\n" + "B#X#P\n" + ".....\n";
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) {		
 		try {
 			// NOTE: COMMENT EVERYTHING INSIDE THIS TRY-BLOCK IF YOU ARE USING ECLIPSE.
 			// `args` will be in form of: {<map>, <classPath>, <playerClassName> ...}
@@ -26,12 +25,12 @@ public class Main
 			mapFile = args[0];
 			classPath = args[1];
 			// Read map file and build `boardMap`
-			BufferedReader buffredReader = new BufferedReader(new FileReader(mapFile));
-			String line = buffredReader.readLine();
+			BufferedReader bufferedReader = new BufferedReader(new FileReader(mapFile));
+			String line = bufferedReader.readLine();
 			boardMap = "";
 			while (line != null) {
 				boardMap += line + "\n";
-				line = buffredReader.readLine();
+				line = bufferedReader.readLine();
 			}
 			// Get player class names
 			numberOfPlayer = args.length - 2;
@@ -100,13 +99,5 @@ public class Main
 			iterProcessThread.start();
 		}
 		
-		// Block while the game runs,
-		// Terminate everything after 1s after it ends.
-		try {
-			while (GameMachine.isGameRunning) {};
-			Thread.sleep(5000);
-		}
-		catch (InterruptedException e) {}		
-		System.exit(0);
 	}
 }
