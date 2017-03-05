@@ -7,11 +7,15 @@ public class ContohAI1
 	public static Player player = new Player("1","1","0");
 	public static String nickname = "ContohAI1";
 	public static String [][] board = new String[2][2];
+	public static String status = "AMAN";
+	public static Tembok sementara = new Tembok("0","0");
+	public static ArrayList<Tembok> bomArr = new ArrayList<Tembok>();
 	public static void main(String[] args) {
 		Scanner scanner = new Scanner(System.in);	
 		
 		while (true) {
 			tembok = new ArrayList<Tembok>();
+			bomArr = new ArrayList<Tembok>();
 			String input = "";
 			int turn = 0;
                                  int jmlPemain = 0;
@@ -66,6 +70,7 @@ public class ContohAI1
 	                                            						String powerBom = input.substring(1,input.length());
 	                                            						String timeBom = input.substring(input.length());
 	                                            						board[i][j] = "b";
+	                                            						bomArr.add(new Tembok(""+i,""+j));
 	                                            					}else if (awalInput.equals("F")){
 	                                            						String timeFlare = input.substring(1);
 	                                            						board[i][j] = "f";
@@ -96,12 +101,18 @@ public class ContohAI1
 				System.out.println();
 			}
 			System.out.println(player.x + " " + player.y + "#" + player.nomorPlayer + " " + tembok.size());*/
-			Tembok sementara = nearestTembok();
-			//System.out.println(sementara.x + " " + sementara.y);
-			for(int i = 0 ; i < tembok.size() ; i++){
-				//System.out.println(tembok.get(i).x);
+			//System.out.println(bomArr.size());
+			if(bomArr.size() == 0){
+				sementara = nearestTembok(tembok);
+				moveToTembok(sementara);
+				status = "AMAN";
+			}else{
+				//System.out.println(nearestTembok(bomArr));
+				sementara = nearestTembok(bomArr);
+
+				kaburFromBom(sementara);
 			}
-			moveToTembok(sementara);
+			//System.out.println(">> ANEH");
 			// Print a move
 			//.out.println(">> MOVE RIGHT");
 		}
@@ -128,6 +139,10 @@ public class ContohAI1
 		if(validMove(xP,yP-1)){
 			tmpKr = Math.abs(xP-xT) + Math.abs(yP-yT-1);
 		}
+		if(status.equals("PASANG")){
+			System.out.println(">> DROP BOMB");
+			return;
+		}
 		int hasil = Math.min(tmpA,Math.min(tmpB,Math.min(tmpKn,tmpKr)));
 		if(tmpA == hasil){
 			System.out.println(">> MOVE UP");
@@ -147,11 +162,58 @@ public class ContohAI1
 		}
 
 	}
-	public static Tembok nearestTembok(){
+	public static void kaburFromBom(Tembok tembok){
+		// DLS deep 1 LOL + MD
+		int tmpA = 1;
+		int tmpKn = 1;
+		int tmpKr = 1;
+		int tmpB = 1;
+		int xP = Integer.parseInt(player.x);
+		int yP = Integer.parseInt(player.y);
+		int xT = Integer.parseInt(tembok.x);
+		int yT = Integer.parseInt(tembok.y);
+		if(validMove(xP-1,yP)){
+			tmpA = Math.abs(xP-1-xT) + Math.abs(yP-yT);
+		}
+		if(validMove(xP+1,yP)){
+			tmpB = Math.abs(xP+1-xT) + Math.abs(yP-yT);
+		}
+		if(validMove(xP,yP+1)){
+			tmpKn = Math.abs(xP-xT) + Math.abs(yP-yT+1);
+		}
+		if(validMove(xP,yP-1)){
+			tmpKr = Math.abs(xP-xT) + Math.abs(yP-yT-1);
+		}
+		int hasil = Math.max(tmpA,Math.max(tmpB,Math.max(tmpKn,tmpKr)));
+		if(hasil <= 1){
+			System.out.println(">> STAY");
+			return;
+		}
+		if(tmpA == hasil){
+			System.out.println(">> MOVE UP");
+			return;
+		}
+		if(tmpKr == hasil){
+			System.out.println(">> MOVE LEFT");
+			return;
+		}
+		if(tmpB == hasil){
+			System.out.println(">> MOVE DOWN");
+			return;
+		}
+		if(tmpKn == hasil){
+			System.out.println(">> MOVE RIGHT");
+			return;
+		}
+
+	}
+	public static Tembok nearestTembok(ArrayList<Tembok> tembok){
 		if(tembok.size() < 1){
+			
 			return null;
 		}
-		Tembok tmp = tembok.get(1);
+		//System.out.println(tembok.size());
+		Tembok tmp = tembok.get(0);
 		//System.out.println(tmp.x + " " + tmp.y);
 		int resultTmp = Math.abs(Integer.parseInt(tmp.x) - Integer.parseInt(player.x)) + Math.abs(Integer.parseInt(tmp.y) - Integer.parseInt(player.y));
 		for(int i = 1 ; i < tembok.size() ; i++){
@@ -170,6 +232,9 @@ public class ContohAI1
 		} else if(board[x][y].equals("#") || board[x][y].equals("f")){
 			return false;
 		}else if(board[x][y].equals("b")){
+			return false;
+		}else if(board[x][y].equals("X")){
+			status = "PASANG";
 			return false;
 		}
 		return true;
