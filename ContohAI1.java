@@ -48,8 +48,6 @@ public class ContohAI1
                                             		input = scanner.nextLine();
                                             		input = input.replace(" ","").replace("]","").substring(1).replace("["," ") + " ^";
                                             		inputarray = input.split(" ");
-                                            		//System.out.println(input);
-                                            		//System.out.println(input +" " + inputarray.length);
                                             		for(int j = 0 ; j < col ; j++){
                                             			input = inputarray[j];
                                             			if(input.equals("")){
@@ -57,7 +55,6 @@ public class ContohAI1
                                             			}
                                             			else if(input.substring(0,1).equals("#") || input.substring(0,1).equals("X")){
                                             				if(input.substring(0,1).equals("X")){
-                                            					//Tembok baru = new Tembok(""+i , ""+j);
                                             					tembok.add(new Tembok(""+i , ""+j));
                                             				}
                                             				board[i][j] = input.substring(0,1);
@@ -84,40 +81,25 @@ public class ContohAI1
 	                                            							player.x = ""+i;
 	                                            							player.y = ""+j;
 	                                            						}
-	                                            						//System.out.println(i + " " + j);
 	                                            						board[i][j] = input;
 	                                            					}
 	                                            				}
                                             				}
                                             			}
-                                            			//System.out.println(input);
                                             		}
                                             	}
                                             }
 			}
-			/*for (int i = 0; i < board.length ; i++ ){
-				for(int j = 0 ; j < board[i].length ; j++){
-					System.out.print(board[i][j]);
-				}
-				System.out.println();
-			}
-			System.out.println(player.x + " " + player.y + "#" + player.nomorPlayer + " " + tembok.size());*/
-			//System.out.println(bomArr.size());
-			//System.out.println(sementara.getX() + " " + sementara.getY() + status);
 			if(bomArr.size() == 0){
 				status = "AMAN";
 				sementara = nearestTembok(tembok);
 				moveToTembok(sementara);
 			}else{
-				//System.out.println(nearestTembok(bomArr));
 				sementara = nearestTembok(bomArr);
 				kaburFromBom(sementara);
 			}
 			System.out.println(sementara.getX() + " " + sementara.getY() + status);
 			System.out.println(player.x + " " + player.y + status);
-			//System.out.println(">> ANEH");
-			// Print a move
-			//.out.println(">> MOVE RIGHT");
 		}
 	}
 	public static void moveToTembok(Tembok tembok){
@@ -230,12 +212,9 @@ public class ContohAI1
 	}
 	public static Tembok nearestTembok(ArrayList<Tembok> tembok){
 		if(tembok.size() < 1){
-			
 			return null;
 		}
-		//System.out.println(tembok.size());
 		Tembok tmp = tembok.get(0);
-		//System.out.println(tmp.x + " " + tmp.y);
 		int resultTmp = Math.abs(Integer.parseInt(tmp.x) - Integer.parseInt(player.x)) + Math.abs(Integer.parseInt(tmp.y) - Integer.parseInt(player.y));
 		for(int i = 1 ; i < tembok.size() ; i++){
 			int resultTandingan = Math.abs(Integer.parseInt(tembok.get(i).x) - Integer.parseInt(player.x)) + Math.abs(Integer.parseInt(tembok.get(i).y) - Integer.parseInt(player.y));
@@ -258,11 +237,7 @@ public class ContohAI1
 		}
 		return true;
 	}
-	//public static 
 
-}
-class Move{
-	//public static 
 }
 class Player{
 	public static String x;
