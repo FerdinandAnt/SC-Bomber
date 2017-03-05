@@ -10,6 +10,7 @@ public class ContohAI1
 	public static String status = "AMAN";
 	public static Tembok sementara = new Tembok("0","0");
 	public static ArrayList<Tembok> bomArr = new ArrayList<Tembok>();
+	public static String move= "";
 	public static void main(String[] args) {
 		Scanner scanner = new Scanner(System.in);	
 		
@@ -59,7 +60,7 @@ public class ContohAI1
                                             					//Tembok baru = new Tembok(""+i , ""+j);
                                             					tembok.add(new Tembok(""+i , ""+j));
                                             				}
-                                            				board[i][j] = input.substring(1,2);
+                                            				board[i][j] = input.substring(0,1);
                                             			}else {
                                             				String [] inputarrayB = input.split(";");
                                             				if(inputarrayB.length > 0){
@@ -102,16 +103,18 @@ public class ContohAI1
 			}
 			System.out.println(player.x + " " + player.y + "#" + player.nomorPlayer + " " + tembok.size());*/
 			//System.out.println(bomArr.size());
+			//System.out.println(sementara.getX() + " " + sementara.getY() + status);
 			if(bomArr.size() == 0){
+				status = "AMAN";
 				sementara = nearestTembok(tembok);
 				moveToTembok(sementara);
-				status = "AMAN";
 			}else{
 				//System.out.println(nearestTembok(bomArr));
 				sementara = nearestTembok(bomArr);
-
 				kaburFromBom(sementara);
 			}
+			System.out.println(sementara.getX() + " " + sementara.getY() + status);
+			System.out.println(player.x + " " + player.y + status);
 			//System.out.println(">> ANEH");
 			// Print a move
 			//.out.println(">> MOVE RIGHT");
@@ -129,34 +132,43 @@ public class ContohAI1
 		int yT = Integer.parseInt(tembok.y);
 		if(validMove(xP-1,yP)){
 			tmpA = Math.abs(xP-1-xT) + Math.abs(yP-yT);
+			if(move.equals("DOWN")) tmpA +=2;
 		}
 		if(validMove(xP+1,yP)){
 			tmpB = Math.abs(xP+1-xT) + Math.abs(yP-yT);
+			if(move.equals("UP")) tmpB +=2;
 		}
 		if(validMove(xP,yP+1)){
 			tmpKn = Math.abs(xP-xT) + Math.abs(yP-yT+1);
+			if(move.equals("LEFT")) tmpKn +=2;
 		}
 		if(validMove(xP,yP-1)){
 			tmpKr = Math.abs(xP-xT) + Math.abs(yP-yT-1);
+			if(move.equals("RIGHT")) tmpKr +=2;
 		}
 		if(status.equals("PASANG")){
+			move = "DROP";
 			System.out.println(">> DROP BOMB");
 			return;
 		}
 		int hasil = Math.min(tmpA,Math.min(tmpB,Math.min(tmpKn,tmpKr)));
 		if(tmpA == hasil){
+			move = "UP";
 			System.out.println(">> MOVE UP");
 			return;
 		}
 		if(tmpKr == hasil){
+			move = "LEFT";
 			System.out.println(">> MOVE LEFT");
 			return;
 		}
 		if(tmpB == hasil){
+			move = "DOWN";
 			System.out.println(">> MOVE DOWN");
 			return;
 		}
 		if(tmpKn == hasil){
+			move = "RIGHT";
 			System.out.println(">> MOVE RIGHT");
 			return;
 		}
@@ -164,44 +176,53 @@ public class ContohAI1
 	}
 	public static void kaburFromBom(Tembok tembok){
 		// DLS deep 1 LOL + MD
-		int tmpA = 1;
-		int tmpKn = 1;
-		int tmpKr = 1;
-		int tmpB = 1;
+		int tmpA = -1;
+		int tmpKn = -1;
+		int tmpKr = -1;
+		int tmpB = -1;
 		int xP = Integer.parseInt(player.x);
 		int yP = Integer.parseInt(player.y);
-		int xT = Integer.parseInt(tembok.x);
-		int yT = Integer.parseInt(tembok.y);
+		int xT = Integer.parseInt(tembok.getX());
+		int yT = Integer.parseInt(tembok.getY());
 		if(validMove(xP-1,yP)){
 			tmpA = Math.abs(xP-1-xT) + Math.abs(yP-yT);
+			//if(move.equals("DOWN")) tmpA -=2;
 		}
 		if(validMove(xP+1,yP)){
 			tmpB = Math.abs(xP+1-xT) + Math.abs(yP-yT);
+			//if(move.equals("UP")) tmpB -=2;
 		}
 		if(validMove(xP,yP+1)){
 			tmpKn = Math.abs(xP-xT) + Math.abs(yP-yT+1);
+			//if(move.equals("LEFT")) tmpKn -=2;
 		}
 		if(validMove(xP,yP-1)){
 			tmpKr = Math.abs(xP-xT) + Math.abs(yP-yT-1);
+			//if(move.equals("RIGHT")) tmpKr -=2;
 		}
 		int hasil = Math.max(tmpA,Math.max(tmpB,Math.max(tmpKn,tmpKr)));
-		if(hasil <= 1){
+		if(hasil <= 1 && xP != xT && yP != yT){
+			move = "STAY";
 			System.out.println(">> STAY");
 			return;
 		}
 		if(tmpA == hasil){
+			move = "UP";
 			System.out.println(">> MOVE UP");
 			return;
 		}
 		if(tmpKr == hasil){
+			move = "LEFT";
 			System.out.println(">> MOVE LEFT");
 			return;
 		}
 		if(tmpB == hasil){
+			move = "DOWN";
 			System.out.println(">> MOVE DOWN");
 			return;
 		}
 		if(tmpKn == hasil){
+			move = "RIGHT";
 			System.out.println(">> MOVE RIGHT");
 			return;
 		}
@@ -229,9 +250,7 @@ public class ContohAI1
 	public static boolean validMove(int x, int y){
 		if(x < 0 || x >= board.length || y < 0 || y >= board[0].length){
 			return false;
-		} else if(board[x][y].equals("#") || board[x][y].equals("f")){
-			return false;
-		}else if(board[x][y].equals("b")){
+		} else if(board[x][y].equals("#") || board[x][y].equals("f") || board[x][y].equals("b")){
 			return false;
 		}else if(board[x][y].equals("X")){
 			status = "PASANG";
@@ -257,8 +276,8 @@ class Player{
 	}
 }
 class Tembok{
-	public static String x;
-	public static String y;
+	public String x;
+	public String y;
 
 	public Tembok(String x, String y){
 		this.x = x;
