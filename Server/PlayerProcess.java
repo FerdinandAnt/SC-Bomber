@@ -13,10 +13,6 @@ public class PlayerProcess
 	
 	public PlayerProcess(String classPath, String className) {
 		try {
-<<<<<<< Updated upstream
-			// XXX: If the startup is slow, ProcessBuilder could be the cause (?)
-			processBuilder = new ProcessBuilder("java.exe", "-cp", classPath, className);
-=======
 			// Determine Java executable to call based on OS
 			String osName = System.getProperty("os.name");
 			String javaExecutableName = "";
@@ -29,7 +25,6 @@ public class PlayerProcess
 			// Start player process and get I/O stream.
 			// If the startup is slow, ProcessBuilder could be the cause
 			processBuilder = new ProcessBuilder(javaExecutableName, "-cp", classPath, className);
->>>>>>> Stashed changes
 			process = processBuilder.start();
 			in = new Scanner(process.getInputStream());
 			out = new PrintWriter(process.getOutputStream());

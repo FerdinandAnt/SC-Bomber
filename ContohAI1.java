@@ -10,10 +10,6 @@ public class ContohAI1
 		
 		while (true) {
 			String input = "";
-<<<<<<< Updated upstream
-			
-=======
->>>>>>> Stashed changes
 			// Read board state
 			// Read until "END" is detected
 			while (!input.equals("END")) {
@@ -21,9 +17,6 @@ public class ContohAI1
 			}
 			
 			// Print a move
-<<<<<<< Updated upstream
-			System.out.println(">> MOVE RIGHT");
-=======
 			switch (random.nextInt(6)) {
 				case 0: System.out.println(">> MOVE RIGHT"); break;
 				case 1: System.out.println(">> MOVE LEFT"); break;
@@ -32,7 +25,6 @@ public class ContohAI1
 				case 4: System.out.println(">> DROP BOMB"); break;
 				default: System.out.println(">> STAY"); break;
 			}
->>>>>>> Stashed changes
 		}
 	}
 }
