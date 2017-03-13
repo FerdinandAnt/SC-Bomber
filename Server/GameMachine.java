@@ -13,7 +13,7 @@ import javax.swing.plaf.synth.SynthSeparatorUI;
 public class GameMachine
 {
 	public static final int TURN_TIME_LIMIT_MS = 1200;
-	public static final int TURN_LIMIT = 2000;
+	public static final int TURN_LIMIT = 1000;
 	
 	public static final int POINTS_DESTROY_WALL = 10;
 	public static final int POINTS_GET_POWERUP = 50;
@@ -121,17 +121,29 @@ public class GameMachine
 					// Spawn destructible wall with Power+ powerup
 					iterBoardCell.add("XPX");
 				}
-				else if (boardMapCharacter == '@') {
+				else if (boardMapCharacter == '&') {
 					// Spawn a bomb (for debug purposes)
-					// Treated as: spawned by P0, power:3, count:2
+					// Treated as: spawned by P0, power:1, count:5
 					// (This will explode on turn 1)
-					iterBoardCell.add("B:0:3:2");
+					iterBoardCell.add("B:0:1:5");
 				}
-				else if (boardMapCharacter == '%') {
+				else if (boardMapCharacter == '*') {
 					// Spawn a bomb (for debug purposes)
-					// Treated as: spawned by P1, power:3, count:2
+					// Treated as: spawned by P1, power:1, count:5
 					// (This will explode on turn 1)
-					iterBoardCell.add("B:1:3:2");
+					iterBoardCell.add("B:1:1:5");
+				}
+				else if (boardMapCharacter == '(') {
+					// Spawn a bomb (for debug purposes)
+					// Treated as: spawned by P0, power:1, count:1
+					// (This will explode on turn 1)
+					iterBoardCell.add("B:0:1:1");
+				}
+				else if (boardMapCharacter == ')') {
+					// Spawn a bomb (for debug purposes)
+					// Treated as: spawned by P1, power:1, count:1
+					// (This will explode on turn 1)
+					iterBoardCell.add("B:1:1:1");
 				}
 			}
 		}
@@ -444,9 +456,11 @@ public class GameMachine
 	 * Also, if there's a powerup in the wall, it will be spawned.
 	 * @param cellContents - ArrayList to modify.
 	 * @param blastCause - The owner of the bomb that explodes this cell.
+	 * @param isWillBeUpdated - SUPER DIRTY FIX. True if this cell will `bombTick()` update from
+	 *   its subsequent iteration, false otherwise. (`bombTick()` iterates to the right, then down.)
 	 * @return true if the cell does not stop the explosion from spreading.
 	 */
-	public static boolean addFlareInCell(ArrayList<String> cellContents, ArrayList<Integer> blastCause) {
+	public static boolean addFlareInCell(ArrayList<String> cellContents, ArrayList<Integer> blastCause, boolean isWillBeUpdated) {
 		int cellContentsLength = cellContents.size();
 		boolean isBlastCanContinue = false;
 		boolean isFlareHasBeenAdded = false;
@@ -529,7 +543,12 @@ public class GameMachine
 				// Bomb strings are in the form of "B:<owners>:<power>:<count>"
 				// The owners (split[1]) and power (split[2]) stays the same
 				String[] cellContentSplit = cellContent.split(":");
-				String newBombState = "B:" + cellContentSplit[1] + ":" + cellContentSplit[2] + ":" + 1;
+				// XXX: SUPER DIRTY FIX. If this cell will receive bombTick() update,
+				// Then another ONE countdown will be substracted from that update (causing explosion if it becomes 0).
+				// If the bomb should not explode by that time, change the newCountdown to 2 instead.
+				int oldCountdown = Integer.parseInt(cellContentSplit[3]);
+				int newCountdown = (isWillBeUpdated && oldCountdown > 1)? 2 : 1;
+				String newBombState = "B:" + cellContentSplit[1] + ":" + cellContentSplit[2] + ":" + newCountdown;
 				cellContents.set(i, newBombState);
 			}
 		}
@@ -822,7 +841,7 @@ public class GameMachine
 							// Explode the cell
 							toCheckCellContents = iterCellContents;
 							deadPlayerIndices = getPlayerIndicesInCell(toCheckCellContents);
-							addFlareInCell(toCheckCellContents, bombOwners);
+							addFlareInCell(toCheckCellContents, bombOwners, false);
 							for (Integer deadPlayerIndex : deadPlayerIndices) {
 								for (Integer deathCause : bombOwners) {
 									playerDeathCause[deadPlayerIndex].add(deathCause);
@@ -850,9 +869,14 @@ public class GameMachine
 									}
 									else {
 										// Explode the cell
+										// XXX: `isWillBeUpdated` is for SUPER DIRTY FIX. Should be true if the target cell
+										// Would receive `tickBomb()` update (reducing its bomb count by 1). If the scanning direction
+										// is down (directionIndex=1) or right (directionIndex=3), target cell has not received `tickBomb()`
+										// update and will later receive an `tickBomb()` update later.
+										boolean isWillBeUpdated = (directionIndex == 1) || (directionIndex == 3); 
 										toCheckCellContents = getBoardCell(CheckRow, CheckCol);
 										deadPlayerIndices = getPlayerIndicesInCell(toCheckCellContents);
-										isBlastCanContinue = addFlareInCell(toCheckCellContents, bombOwners);
+										isBlastCanContinue = addFlareInCell(toCheckCellContents, bombOwners, isWillBeUpdated);
 										for (Integer deadPlayerIndex : deadPlayerIndices) {
 											for (Integer deathCause : bombOwners) {
 												playerDeathCause[deadPlayerIndex].add(deathCause);
