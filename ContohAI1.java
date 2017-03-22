@@ -3,6 +3,41 @@ import java.util.*;
 
 public class ContohAI1
 {
+	// Class ini merepresentasikan Player yang sedang bermain dalam game
+	// class ini masih bisa di upgrade(seharusnya di upgrade agar lebih bagus)
+	static class Player{
+		public  String x;
+		public  String y;
+		public  String nomorPlayer;
+
+		public Player(String x, String y, String nomorPlayer){
+			this.x = x;
+			this.y = y;
+			this.nomorPlayer = nomorPlayer;
+		}
+	}
+
+	// class untuk menyimpan object tembok atau bom juga bisa
+	// class ini bisa di upgrade dengan menambahkan atribut sesuai dengan kebutuhan
+	// sebagai contoh menambahkan power untuk bom dll
+	static class Tembok{
+		public String x;
+		public String y;
+
+		public Tembok(String x, String y){
+			this.x = x;
+			this.y = y;
+		}
+		public String getX(){
+			return this.x;
+		}
+		public String getY(){
+			return this.y;
+		}
+	}
+
+	// ini siasi variable publik agar bisa di akses dimanapun
+	// jadi lebih mudah
 	public static ArrayList<Tembok> tembok = new ArrayList<Tembok>();
 	public static Player player = new Player("1","1","0");
 	public static String nickname = "ContohAI1";
@@ -11,84 +46,108 @@ public class ContohAI1
 	public static Tembok sementara = new Tembok("0","0");
 	public static ArrayList<Tembok> bomArr = new ArrayList<Tembok>();
 	public static String move= "";
+
+	// main program
 	public static void main(String[] args) {
+
 		Scanner scanner = new Scanner(System.in);	
 		
 		while (true) {
+
+			// arraylist yang di perbaharui setiap looping
+			// reset publik tiap looping
 			tembok = new ArrayList<Tembok>();
 			bomArr = new ArrayList<Tembok>();
 			String input = "";
 			int turn = 0;
-                                 int jmlPemain = 0;
+			int jmlPemain = 0;
                                  
 			// Read board state
 			// Read until "END" is detected
 			while (!input.equals("END")) {
 				input = scanner.nextLine();
-                                            String [] inputarray =input.split(" ");
-                                            if (inputarray[0].equals("TURN")){
-                                            	turn = Integer.parseInt(inputarray[1]);
-                                            }
-                                            else if(inputarray[0].equals("PLAYER")){
-                                            	jmlPemain = Integer.parseInt(inputarray[1]);
-                                            	for(int i = 0 ; i < jmlPemain ; i++){
-                                            		input = scanner.nextLine();
-                                            		String [] inputarrayC = input.split(" ");
-                                            		if(inputarrayC[1].equals(nickname)){
-                                            			player.nomorPlayer = inputarrayC[0].substring(1);
+				String [] inputarray =input.split(" ");
+	                                        if (inputarray[0].equals("TURN")){
+	                                       		turn = Integer.parseInt(inputarray[1]);
+	                                        }
+                                            	else if(inputarray[0].equals("PLAYER")){
+                                            		jmlPemain = Integer.parseInt(inputarray[1]);
+                                            		for(int i = 0 ; i < jmlPemain ; i++){
+                                            			input = scanner.nextLine();
+                                            			String [] inputarrayC = input.split(" ");
+                                            			if(inputarrayC[1].equals(nickname)){
+                                            				player.nomorPlayer = inputarrayC[0].substring(1);
+                                            			}
                                             		}
                                             	}
-                                            }
-                                            else if(inputarray[0].equals("BOARD")){
-                                            	// masukin peta ke board dari outputnya
-                                            	int row = Integer.parseInt(inputarray[1]);
-                                            	int col = Integer.parseInt(inputarray[2]);
-                                            	board = new String[row][col];
-                                            	for (int i = 0 ; i < row ; i++){
-                                            		input = scanner.nextLine();
-                                            		input = input.replace(" ","").replace("]","").substring(1).replace("["," ") + " ^";
-                                            		inputarray = input.split(" ");
-                                            		for(int j = 0 ; j < col ; j++){
-                                            			input = inputarray[j];
-                                            			if(input.equals("")){
-                                            				board[i][j] = ".";
-                                            			}
-                                            			else if(input.substring(0,1).equals("#") || input.substring(0,1).equals("X")){
-                                            				if(input.substring(0,1).equals("X")){
-                                            					tembok.add(new Tembok(""+i , ""+j));
-                                            				}
-                                            				board[i][j] = input.substring(0,1);
-                                            			}else {
-                                            				String [] inputarrayB = input.split(";");
-                                            				if(inputarrayB.length > 0){
-	                                            				for(int k = 0 ; k < inputarrayB.length ; k++){
-	                                            					input = inputarrayB[k];
-	                                            					String awalInput = input.substring(0,1);
-	                                            					if(awalInput.equals("B")){
-	                                            						String powerBom = input.substring(1,input.length());
-	                                            						String timeBom = input.substring(input.length());
-	                                            						board[i][j] = "b";
-	                                            						bomArr.add(new Tembok(""+i,""+j));
-	                                            					}else if (awalInput.equals("F")){
-	                                            						String timeFlare = input.substring(1);
-	                                            						board[i][j] = "f";
-	                                            					}else if(awalInput.equals("+")){
-	                                            						String powerUP = input.substring(1);
-	                                            						board[i][j] = "p";
-	                                            					}else {
-	                                            						//Player
-	                                            						if(input.equals(player.nomorPlayer)){
-	                                            							player.x = ""+i;
-	                                            							player.y = ""+j;
-	                                            						}
-	                                            						board[i][j] = input;
-	                                            					}
+                                            	else if(inputarray[0].equals("BOARD")){
+
+                                            		// masukin peta ke board dari outputnya
+                                            		int row = Integer.parseInt(inputarray[1]);
+	                                            	int col = Integer.parseInt(inputarray[2]);
+	                                            	board = new String[row][col];
+
+	                                            	for (int i = 0 ; i < row ; i++){
+	                                            		input = scanner.nextLine();
+
+	                                            		// membuat inputan menjadi lebih mudah di olah
+	                                            		input = input.replace(" ","").replace("]","").substring(1).replace("["," ") + " ^";
+	                                            		inputarray = input.split(" ");
+
+	                                            		for(int j = 0 ; j < col ; j++){
+	                                            			input = inputarray[j];
+
+	                                            			// cek jalan setapak biasa
+	                                            			if(input.equals("")){
+	                                            				board[i][j] = ".";
+	                                            			}
+
+	                                            			// cek apakah tembok yang bisa di hancurin atau tidak
+	                                            			else if(input.substring(0,1).equals("#") || input.substring(0,1).equals("X")){
+	                                            				if(input.substring(0,1).equals("X")){
+	                                            					tembok.add(new Tembok(""+i , ""+j));
 	                                            				}
-                                            				}
-                                            			}
+	                                            				board[i][j] = input.substring(0,1);
+	                                            			}else {
+	                                            				// mode isi yang seperti 0;1;2;3
+	                                            				String [] inputarrayB = input.split(";");
+	                                            				if(inputarrayB.length > 0){
+		                                            				for(int k = 0 ; k < inputarrayB.length ; k++){
+		                                            					input = inputarrayB[k];
+		                                            					String awalInput = input.substring(0,1);
+
+		                                            					// setting untuk bom, ada power dan juga waktu ledakannya
+		                                            					// dan masukkan kedalam array bom
+		                                            					if(awalInput.equals("B")){
+		                                            						String powerBom = input.substring(1,input.length());
+		                                            						String timeBom = input.substring(input.length());
+		                                            						board[i][j] = "b";
+		                                            						bomArr.add(new Tembok(""+i,""+j));
+		                                            					}else if (awalInput.equals("F")){
+
+		                                            						// cek apakah itu flare
+		                                            						String timeFlare = input.substring(1);
+		                                            						board[i][j] = "f";
+
+		                                            					}else if(awalInput.equals("+")){
+
+		                                            						//cek apakah itu power up
+		                                            						String powerUP = input.substring(1);
+		                                            						board[i][j] = "p";
+		                                            					}else {
+		                                            						//Player
+		                                            						if(input.equals(player.nomorPlayer)){
+		                                            							player.x = ""+i;
+		                                            							player.y = ""+j;
+		                                            						}
+		                                            						board[i][j] = input;
+		                                            					}
+		                                            				}
+	                                            				}
+	                                            			}
+	                                            		}
                                             		}
-                                            	}
-                                            }
+                                           	}
 			}
 			if(bomArr.size() == 0){
 				status = "AMAN";
@@ -102,6 +161,11 @@ public class ContohAI1
 			System.out.println(player.x + " " + player.y + status);
 		}
 	}
+
+
+	// ini bekerja dengan cek dari 2 method dibawahnya
+	// di cek move mana yang terbaik dari atas - kiri - bawah - kanan 
+	// menggunakan MD untuk menentukan jarak terdekat atau terjauh
 	public static void moveToTembok(Tembok tembok){
 		// DLS deep 1 LOL + MD
 		int tmpA = 9000;
@@ -134,6 +198,11 @@ public class ContohAI1
 			return;
 		}
 		int hasil = Math.min(tmpA,Math.min(tmpB,Math.min(tmpKn,tmpKr)));
+    		if(hasil == 9000){
+    			move = "STAY";
+    			System.out.println(">> STAY");
+    			return;
+    		}
 		if(tmpA == hasil){
 			move = "UP";
 			System.out.println(">> MOVE UP");
@@ -210,6 +279,9 @@ public class ContohAI1
 		}
 
 	}
+
+	// cek siapakah yang paling dekat dari arraylist yang diberikan
+	// dibandingkan dengan metode MD sehingga diketahui jarak terdekatnya
 	public static Tembok nearestTembok(ArrayList<Tembok> tembok){
 		if(tembok.size() < 1){
 			return null;
@@ -226,6 +298,9 @@ public class ContohAI1
 		}
 		return tmp;
 	}
+
+	// pada method ini cek apakah koordinat tersebeut bisa dilewati atau tidak
+	// terserah kalian yg menentukan valid seperti apa validnya
 	public static boolean validMove(int x, int y){
 		if(x < 0 || x >= board.length || y < 0 || y >= board[0].length){
 			return false;
@@ -238,30 +313,4 @@ public class ContohAI1
 		return true;
 	}
 
-}
-class Player{
-	public static String x;
-	public static String y;
-	public static String nomorPlayer;
-
-	public Player(String x, String y, String nomorPlayer){
-		this.x = x;
-		this.y = y;
-		this.nomorPlayer = nomorPlayer;
-	}
-}
-class Tembok{
-	public String x;
-	public String y;
-
-	public Tembok(String x, String y){
-		this.x = x;
-		this.y = y;
-	}
-	public String getX(){
-		return this.x;
-	}
-	public String getY(){
-		return this.y;
-	}
 }

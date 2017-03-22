@@ -1,24 +1,27 @@
 import java.util.Scanner;
 import java.util.*;
 
-public class ContohAI4
+public class AIKabur
 {
 	public static ArrayList<Tembok> tembok = new ArrayList<Tembok>();
-	public static Player2 player = new Player2("1","1","0",1);
-	public static String nickname = "ContohAI4";
+	public static Player player = new Player("1","1","0");
+	public static String nickname = "AIKabur";
 	public static String [][] board = new String[2][2];
 	public static String status = "AMAN";
-	public static Item sementara = new Item("0","0","TEMBOK");
-	public static ArrayList<Item> itemArr = new ArrayList<Item>();
+	public static Tembok sementara = new Tembok("0","0");
+	public static ArrayList<Tembok> bomArr = new ArrayList<Tembok>();
+	public static ArrayList<Player> playerLain = new ArrayList<Player>();
 	public static String move= "";
 	public static void main(String[] args) {
 		Scanner scanner = new Scanner(System.in);	
 		
 		while (true) {
-			itemArr = new ArrayList<Item>();
+			tembok = new ArrayList<Tembok>();
+			bomArr = new ArrayList<Tembok>();
+			//playerLain = new
 			String input = "";
 			int turn = 0;
-			int jmlPemain = 0;
+                                 int jmlPemain = 0;
                                  
 			// Read board state
 			// Read until "END" is detected
@@ -54,7 +57,7 @@ public class ContohAI4
                                             			}
                                             			else if(input.substring(0,1).equals("#") || input.substring(0,1).equals("X")){
                                             				if(input.substring(0,1).equals("X")){
-                                            					//itemArr.add(new Item(""+i , ""+j, "TEMBOK"));
+                                            					tembok.add(new Tembok(""+i , ""+j));
                                             				}
                                             				board[i][j] = input.substring(0,1);
                                             			}else {
@@ -67,7 +70,7 @@ public class ContohAI4
 	                                            						String powerBom = input.substring(1,input.length());
 	                                            						String timeBom = input.substring(input.length());
 	                                            						board[i][j] = "b";
-	                                            						itemArr.add(new Item(""+i,""+j, "BOM"));
+	                                            						bomArr.add(new Tembok(""+i,""+j));
 	                                            					}else if (awalInput.equals("F")){
 	                                            						String timeFlare = input.substring(1);
 	                                            						board[i][j] = "f";
@@ -79,9 +82,8 @@ public class ContohAI4
 	                                            						if(input.equals(player.nomorPlayer)){
 	                                            							player.x = ""+i;
 	                                            							player.y = ""+j;
-	                                            						}
-	                                            						else{
-	                                            							itemArr.add(new Item(""+i,""+j,"PLAYER"));
+	                                            						}else {
+	                                            							playerLain.add(new Player(""+i,""+j,input.substring(1)));
 	                                            						}
 	                                            						board[i][j] = input;
 	                                            					}
@@ -92,21 +94,19 @@ public class ContohAI4
                                             	}
                                             }
 			}
-			sementara = nearestItem(itemArr);
-
-			if(sementara.getJenis().equals("PLAYER") && player.jmlBom > 0){
-				//status = "AMAN";
-				//sementara = nearestTembok(tembok);
+			if(bomArr.size() == 0){
+				status = "AMAN";
+				sementara = nearestTembok(tembok);
 				moveToTembok(sementara);
 			}else{
-				//sementara = nearestTembok(bomArr);
+				sementara = nearestTembok(bomArr);
 				kaburFromBom(sementara);
 			}
-			//System.out.println(sementara.getX() + " " + sementara.getY() + status);
-			//System.out.println(player.x + " " + player.y + status);
+			System.out.println(sementara.getX() + " " + sementara.getY() + status);
+			System.out.println(player.x + " " + player.y + status);
 		}
 	}
-	public static void moveToTembok(Item tembok){
+	public static void moveToTembok(Tembok tembok){
 		// DLS deep 1 LOL + MD
 		int tmpA = 9000;
 		int tmpKn = 9000;
@@ -116,7 +116,6 @@ public class ContohAI4
 		int yP = Integer.parseInt(player.y);
 		int xT = Integer.parseInt(tembok.x);
 		int yT = Integer.parseInt(tembok.y);
-		System.out.println(status);
 		if(validMove(xP-1,yP)){
 			tmpA = Math.abs(xP-1-xT) + Math.abs(yP-yT);
 			if(move.equals("DOWN")) tmpA +=2;
@@ -136,16 +135,9 @@ public class ContohAI4
 		if(status.equals("PASANG")){
 			move = "DROP";
 			System.out.println(">> DROP BOMB");
-			player.jmlBom -= 1;
-			status = "AMAN";
 			return;
 		}
 		int hasil = Math.min(tmpA,Math.min(tmpB,Math.min(tmpKn,tmpKr)));
-		if(hasil == 0){
-			move = "STAY";
-			System.out.println(">> STAY");
-			return;
-		}
 		if(tmpA == hasil){
 			move = "UP";
 			System.out.println(">> MOVE UP");
@@ -168,7 +160,7 @@ public class ContohAI4
 		}
 
 	}
-	public static void kaburFromBom(Item tembok){
+	public static void kaburFromBom(Tembok tembok){
 		// DLS deep 1 LOL + MD
 		int tmpA = -1;
 		int tmpKn = -1;
@@ -222,11 +214,11 @@ public class ContohAI4
 		}
 
 	}
-	public static Item nearestItem(ArrayList<Item> tembok){
+	public static Tembok nearestTembok(ArrayList<Tembok> tembok){
 		if(tembok.size() < 1){
 			return null;
 		}
-		Item tmp = tembok.get(0);
+		Tembok tmp = tembok.get(0);
 		int resultTmp = Math.abs(Integer.parseInt(tmp.x) - Integer.parseInt(player.x)) + Math.abs(Integer.parseInt(tmp.y) - Integer.parseInt(player.y));
 		for(int i = 1 ; i < tembok.size() ; i++){
 			int resultTandingan = Math.abs(Integer.parseInt(tembok.get(i).x) - Integer.parseInt(player.x)) + Math.abs(Integer.parseInt(tembok.get(i).y) - Integer.parseInt(player.y));
@@ -241,16 +233,13 @@ public class ContohAI4
 	public static boolean validMove(int x, int y){
 		if(x < 0 || x >= board.length || y < 0 || y >= board[0].length){
 			return false;
-		} else if(board[x][y].equals("#") || board[x][y].equals("f") || board[x][y].equals("b") || board[x][y].equals("X")){
+		} else if(board[x][y].equals("#") || board[x][y].equals("f") || board[x][y].equals("b")){
 			return false;
-		}else if(board[x][y].equals(".")){
-			//status = "PASANG";
-			return true;
-		}else{
+		}else if(board[x][y].equals("X")){
 			status = "PASANG";
 			return false;
 		}
-		//return true;
+		return true;
 	}
 
 }

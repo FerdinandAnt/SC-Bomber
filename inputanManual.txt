@@ -1,0 +1,44 @@
+TURN 0
+PLAYER 4
+P0 1306382032 Bomb:1/1 Range:2 Active 0
+P1 1306382032 Bomb:0/1 Range:3 Dead 0
+P2 1306382032 Bomb:1/1 Range:2 Dead 0
+P3 1306382032 Bomb:1/1 Range:2 Active 10
+BOARD 4 4
+[ ### ][ XXX ][ XPX ][ XPX ]
+[ ### ][ XXX ][ XPX ][ XPX ]
+[ ### ][ XXX ][ B201 ][ XPX ]
+[ ### ][ XXX ][ XPX ][ XPX ]
+END
+
+TURN 0
+PLAYER 4
+P0 ContohAI1 Bomb:1/1 Range:2 Active 0
+P1 1306382032 Bomb:0/1 Range:3 Dead 0
+P2 1306382032 Bomb:1/1 Range:2 Dead 0
+P3 1306382032 Bomb:1/1 Range:2 Active 10
+BOARD 11 13
+[ ### ][ ### ][  1  ][  XXX   ][     ][   XX  ][    ][    ][    ][     ][     ][     ][     ]
+[ ### ][  XXX   ][     ][     ][     ][     ][     ][     ][     ][     ][     ][     ][     ]
+[ ### ][     ][     ][     ][     ][     ][     ][     ][     ][     ][     ][     ][     ]
+[ ### ][ ### ][     ][     ][     ][     ][     ][     ][     ][     ][     ][     ][     ]
+[ ### ][     ][     ][     ][     ][     ][     ][   XXX  ][     ][     ][     ][     ][     ]
+[ ### ][     ][     ][     ][     ][     ][     ][     ][     ][     ][     ][     ][     ]
+[ ### ][ ### ][     ][     ][     ][ B21 ][     ][     ][     ][     ][     ][     ][     ]
+[ ### ][ ### ][     ][     ][     ][     ][     ][     ][     ][     ][     ][     ][     ]
+[ ### ][     ][     ][     ][     ][     ][     ][     ][     ][     ][     ][     ][     ]
+[ ### ][  2  ][     ][     ][     ][     ][     ][     ][     ][     ][     ][     ][     ]
+[ ### ][ ### ][     ][     ][  0  ][     ][     ][     ][     ][     ][     ][     ][     ]
+END
+
+TURN 1
+PLAYER 2
+P0 ContohAI1 Bomb:1/1 Range:1 Offline 0
+P1 ContohAI2 Bomb:1/1 Range:1 Alive 0
+BOARD 5 5
+[ XXX ][ XXX ][ XXX ][     ][  1  ]
+[ XBX ][ ### ][ XPX ][ ### ][     ]
+[ XXX ][ XXX ][ XXX ][ XXX ][ XXX ]
+[     ][ ### ][ XPX ][ ### ][ XBX ]
+[  0  ][     ][ XXX ][ XXX ][ XXX ]
+END
